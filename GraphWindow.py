@@ -17,7 +17,15 @@ class GraphWindow(QWidget):
         # הגדרת משטח הגרף של Matplotlib
         self.figure = Figure(figsize=(4.5, 4), dpi=100)
         self.ax = self.figure.add_subplot(111)
-        self.format_axes()
+        self.ax.set_xlabel("Time (s)")
+        self.ax.set_ylabel("Temperature (°C)")
+        self.ax.grid(True, linestyle="--", alpha=0.5)
+
+        # יצירת שני קווים קבועים מראש (מונע שכפול במקרא ומאפשר עדכון חי)
+        (self.line1,) = self.ax.plot([], [], color="crimson", linewidth=2, label="Body 1")
+        (self.line2,) = self.ax.plot([], [], color="mediumblue", linewidth=2, label="Body 2")
+        self.ax.legend(loc="upper right")
+        self.figure.tight_layout()
 
         self.canvas = FigureCanvas(self.figure)
         self.canvas.setParent(self)
@@ -32,8 +40,9 @@ class GraphWindow(QWidget):
         self.body_combo.setGeometry(495, 60, 160, 38)
         self.body_combo.addItems(["Both", "Body 1", "Body 2"])
         self.body_combo.setStyleSheet("background-color: white; border: 1px solid silver; border-radius: 5px; padding: 4px;")
+        self.body_combo.currentTextChanged.connect(self.update_live_graph)
 
-        # כפתורי פעולה מחוברים למתודות
+        # כפתורי פעולה
         self.draw_btn = QPushButton("Draw", self)
         self.draw_btn.setGeometry(495, 115, 160, 42)
         self.draw_btn.setStyleSheet("background-color: royalblue; color: white; font-weight: bold; border-radius: 6px;")
@@ -49,35 +58,43 @@ class GraphWindow(QWidget):
         self.export_btn.setStyleSheet("background-color: seagreen; color: white; font-weight: bold; border-radius: 6px;")
         self.export_btn.clicked.connect(self.export_csv)
 
-    def format_axes(self):
-        self.ax.set_xlabel("Time (s)")
-        self.ax.set_ylabel("Temperature (°C)")
-        self.ax.grid(True, linestyle="--", alpha=0.5)
-        self.figure.tight_layout()
-
-    def draw_graph(self):
+    def update_live_graph(self):
         times = self.main_window.time_history
         if not times:
-            QMessageBox.warning(self, "No Data", "Run the simulation first before drawing a graph.")
             return
 
         selected = self.body_combo.currentText()
-        if selected == "Both":
-            self.ax.plot(times, self.main_window.body1_temp_history, color="crimson", linewidth=2, label="Body 1")
-            self.ax.plot(times, self.main_window.body2_temp_history, color="mediumblue", linewidth=2, label="Body 2")
-        elif selected == "Body 1":
-            self.ax.plot(times, self.main_window.body1_temp_history, color="crimson", linewidth=2, label="Body 1")
-        else:
-            self.ax.plot(times, self.main_window.body2_temp_history, color="mediumblue", linewidth=2, label="Body 2")
 
-        self.ax.legend()
-        self.format_axes()
-        self.canvas.draw()
+        # עדכון נתוני הקווים הקיימים בהתאם לבחירה
+        if selected == "Both":
+            self.line1.set_data(times, self.main_window.body1_temp_history)
+            self.line2.set_data(times, self.main_window.body2_temp_history)
+            self.line1.set_visible(True)
+            self.line2.set_visible(True)
+        elif selected == "Body 1":
+            self.line1.set_data(times, self.main_window.body1_temp_history)
+            self.line1.set_visible(True)
+            self.line2.set_visible(False)
+        else:
+            self.line2.set_data(times, self.main_window.body2_temp_history)
+            self.line1.set_visible(False)
+            self.line2.set_visible(True)
+
+        # התאמת גבולות הצירים אוטומטית ורענון מהיר
+        self.ax.relim()
+        self.ax.autoscale_view()
+        self.canvas.draw_idle()
+
+    def draw_graph(self):
+        if not self.main_window.time_history:
+            QMessageBox.warning(self, "No Data", "Run the simulation first before drawing a graph.")
+            return
+        self.update_live_graph()
 
     def clear_graph(self):
-        self.ax.clear()
-        self.format_axes()
-        self.canvas.draw()
+        self.line1.set_data([], [])
+        self.line2.set_data([], [])
+        self.canvas.draw_idle()
 
     def export_csv(self):
         times = self.main_window.time_history

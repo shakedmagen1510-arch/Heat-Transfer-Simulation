@@ -17,7 +17,7 @@ class HeatTransfer(QWidget):
         # משתני סימולציה והיסטוריית נתונים
         self.body1 = None
         self.body2 = None
-        self.dt = 0.01  # 10 ms כפי שנלמד בכיתה
+        self.dt = 0.01  # 10 ms לחישוב חלק ללא מדרגות
         self.current_time = 0.0
         self.equilibrium_counter = 0
         self.time_history = []
@@ -189,6 +189,9 @@ class HeatTransfer(QWidget):
             self.body1_temp_history = [self.body1.temperature]
             self.body2_temp_history = [self.body2.temperature]
 
+            if self.graph_win.isVisible():
+                self.graph_win.update_live_graph()
+
             self.start_btn.setText("Stop")
             self.start_btn.setStyleSheet("font-size: 16px; font-weight: bold; color: crimson; background-color: white; border: 2px solid crimson; border-radius: 6px;")
             self.timer.start()
@@ -229,6 +232,10 @@ class HeatTransfer(QWidget):
         self.right_slider.blockSignals(False)
         self.update_body_visual(new_t2, self.right_temp_display, self.right_body_box)
 
+        # רענון הגרף בזמן אמת כל 10 צעדים (0.1 שניות) כשהחלון פתוח - חלק ובלי עומס
+        if self.graph_win.isVisible() and len(self.time_history) % 10 == 0:
+            self.graph_win.update_live_graph()
+
         # בדיקת שיווי משקל תרמי: אם אותו מספר מופיע 5 פעמים ברצף -> עצירה אוטומטית
         if round(new_t1, 2) == round(new_t2, 2):
             self.equilibrium_counter += 1
@@ -236,13 +243,15 @@ class HeatTransfer(QWidget):
             self.equilibrium_counter = 0
 
         if self.equilibrium_counter >= 5:
+            if self.graph_win.isVisible():
+                self.graph_win.update_live_graph()
             self.start_btn.setChecked(False)
             self.start_stop_button_method()
 
     def open_graphs(self):
         self.graph_win.show()
         if self.time_history:
-            self.graph_win.draw_graph()
+            self.graph_win.update_live_graph()
 
     def open_about(self):
         self.about_win.show()
