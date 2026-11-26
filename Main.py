@@ -17,8 +17,9 @@ class HeatTransfer(QWidget):
         # משתני סימולציה והיסטוריית נתונים
         self.body1 = None
         self.body2 = None
-        self.dt = 0.1
+        self.dt = 0.01  # 10 ms כפי שנלמד בכיתה
         self.current_time = 0.0
+        self.equilibrium_counter = 0
         self.time_history = []
         self.body1_temp_history = []
         self.body2_temp_history = []
@@ -170,7 +171,6 @@ class HeatTransfer(QWidget):
 
     def start_stop_button_method(self):
         if self.start_btn.isChecked():
-            # יצירת אובייקטי הגופים לפי הערכים שעל המסך
             self.body1 = Body(
                 self.left_mass_spin.value(),
                 self.left_cap_spin.value(),
@@ -182,8 +182,9 @@ class HeatTransfer(QWidget):
                 float(self.right_slider.value())
             )
 
-            # אתחול זמן ורשימות היסטוריה לניסוי חדש
+            # אתחול זמן, מונה עצירה ורשימות היסטוריה לניסוי חדש
             self.current_time = 0.0
+            self.equilibrium_counter = 0
             self.time_history = [0.0]
             self.body1_temp_history = [self.body1.temperature]
             self.body2_temp_history = [self.body2.temperature]
@@ -217,7 +218,7 @@ class HeatTransfer(QWidget):
         self.body1_temp_history.append(new_t1)
         self.body2_temp_history.append(new_t2)
 
-        # עדכון התצוגה על המסך (מספרים, צבעים וסליידרים)
+        # עדכון התצוגה על המסך
         self.left_slider.blockSignals(True)
         self.left_slider.setValue(round(new_t1))
         self.left_slider.blockSignals(False)
@@ -228,8 +229,20 @@ class HeatTransfer(QWidget):
         self.right_slider.blockSignals(False)
         self.update_body_visual(new_t2, self.right_temp_display, self.right_body_box)
 
+        # בדיקת שיווי משקל תרמי: אם אותו מספר מופיע 5 פעמים ברצף -> עצירה אוטומטית
+        if round(new_t1, 2) == round(new_t2, 2):
+            self.equilibrium_counter += 1
+        else:
+            self.equilibrium_counter = 0
+
+        if self.equilibrium_counter >= 5:
+            self.start_btn.setChecked(False)
+            self.start_stop_button_method()
+
     def open_graphs(self):
         self.graph_win.show()
+        if self.time_history:
+            self.graph_win.draw_graph()
 
     def open_about(self):
         self.about_win.show()
